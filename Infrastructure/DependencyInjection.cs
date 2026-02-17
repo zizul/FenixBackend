@@ -114,7 +114,6 @@ namespace Infrastructure
 
         /// <summary>
         /// Registers MassTransit with RabbitMQ transport for durable message processing.
-        /// Replaces the previous in-memory WorkerBackgroundService/WorkItemsQueue approach.
         /// </summary>
         private static void AddMessaging(IServiceCollection services, ConfigurationManager configuration)
         {
