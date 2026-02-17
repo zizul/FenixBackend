@@ -10,9 +10,9 @@ namespace Application.Services.Event.Handlers
         [Fact]
         public async Task Handle_Should_CompleteWithoutError()
         {
-            var handler = new EventCompletedDomainEventHandler();
-            var domainEvent = new EventCompletedDomainEvent("123", EventStatusType.Completed);
-            var notification = new DomainEventNotification<EventCompletedDomainEvent>(domainEvent);
+            var handler = new EventClosedDomainEventHandler();
+            var domainEvent = new EventClosedDomainEvent("123", EventStatusType.Completed);
+            var notification = new DomainEventNotification<EventClosedDomainEvent>(domainEvent);
 
             await handler.Handle(notification, default);
         }

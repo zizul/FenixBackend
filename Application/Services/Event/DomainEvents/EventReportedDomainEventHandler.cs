@@ -25,7 +25,7 @@ namespace Application.Services.Event.DomainEvents
             // Durable queue ensures the search survives application restarts (fixes in-memory job loss).
             var command = new SearchRespondersCommand
             {
-                EventId = notification.DomainEvent.Id
+                EventId = notification.DomainEvent.EventId
             };
 
             await messagePublisher.PublishAsync(command, cancellationToken);

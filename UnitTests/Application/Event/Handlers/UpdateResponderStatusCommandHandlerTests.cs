@@ -1,4 +1,4 @@
-﻿using Application.Common;
+using Application.Common;
 using Application.Services.Event.Commands;
 using Application.Services.Event.Contracts;
 using Application.Services.Event.DTOs;
@@ -18,6 +18,7 @@ namespace Application.Services.Event.Handlers
         private readonly IReportedEventsRepository repositoryMock;
         private readonly IDomainEventConsumer eventsConsumerMock;
         private readonly IDeviceRepository deviceRepositoryMock;
+        private List<IDomainEvent> capturedEvents = new();
 
 
         public UpdateResponderStatusCommandHandlerTests()
@@ -25,6 +26,11 @@ namespace Application.Services.Event.Handlers
             repositoryMock = Substitute.For<IReportedEventsRepository>();
             eventsConsumerMock = Substitute.For<IDomainEventConsumer>();
             deviceRepositoryMock = Substitute.For<IDeviceRepository>();
+
+            // Capture events at call time — DomainEvents is a live reference that gets cleared after Consume
+            eventsConsumerMock.Consume(Arg.Any<IReadOnlyList<IDomainEvent>>())
+                .Returns(Task.CompletedTask)
+                .AndDoes(x => capturedEvents = x.Arg<IReadOnlyList<IDomainEvent>>().ToList());
         }
 
         [Fact]
@@ -43,20 +49,17 @@ namespace Application.Services.Event.Handlers
             await repositoryMock.Received()
                 .Update(
                     Arg.Is<string>(id => id == "123"), 
-                    Arg.Any<Action<ReportedEvent>>());
-            eventsConsumerMock.Received()
-                .Consume(Arg.Is<List<IDomainEvent>>(
-                    list => 
-                        list.Count == 1 && 
-                        ((EventCompletedDomainEvent)list[0]).Status == EventStatusType.Completed));
+                    Arg.Any<Func<ReportedEvent, Task>>());
+            Assert.Single(capturedEvents);
+            Assert.Equal(EventStatusType.Completed, ((EventClosedDomainEvent)capturedEvents[0]).FinalStatus);
         }
 
         private void SetupRepository(ReportedEvent reportedEvent)
         {
             repositoryMock.Get(Arg.Any<string>()).Returns(reportedEvent);
-            repositoryMock.Update(Arg.Is(reportedEvent.Id), Arg.Any<Action<ReportedEvent>>())
+            repositoryMock.Update(Arg.Is(reportedEvent.Id), Arg.Any<Func<ReportedEvent, Task>>())
                 .Returns(reportedEvent)
-                .AndDoes(x => x.Arg<Action<ReportedEvent>>().Invoke(reportedEvent));
+                .AndDoes(x => x.Arg<Func<ReportedEvent, Task>>().Invoke(reportedEvent).GetAwaiter().GetResult());
         }
         
         private ReportedEvent GetReportedEvent(string eventId, string reporterId, string responderId)

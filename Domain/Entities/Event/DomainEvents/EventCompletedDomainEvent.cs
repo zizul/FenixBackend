@@ -1,17 +1,15 @@
-﻿using Domain.Enums;
+using Domain.Enums;
 
 namespace Domain.Entities.Event.DomainEvents
 {
-    public class EventCompletedDomainEvent : IDomainEvent
+    /// <summary>
+    /// Raised when an event reaches a terminal state (Completed or Cancelled).
+    /// Named "Closed" rather than "Completed" because it covers both outcomes —
+    /// the FinalStatus discriminator tells handlers which terminal state was reached.
+    /// Readonly record struct: immutable, stack-allocated, value equality by default.
+    /// </summary>
+    public readonly record struct EventClosedDomainEvent(string EventId, EventStatusType FinalStatus) : IDomainEvent
     {
-        public string Id { get; }
-        public EventStatusType Status { get; }
-
-
-        public EventCompletedDomainEvent(string id, EventStatusType status) 
-        { 
-            Id = id; 
-            Status = status;
-        }
+        public DateTime OccurredAt { get; } = DateTime.UtcNow;
     }
 }

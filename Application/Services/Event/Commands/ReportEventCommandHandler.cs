@@ -35,6 +35,8 @@ namespace Application.Services.Event.Commands
             // Domain events dispatched after successful persistence (awaited for reliability).
             // Publishes SearchRespondersCommand to RabbitMQ via EventReportedDomainEventHandler.
             await eventsConsumer.Consume(addedEvent.DomainEvents);
+
+            // Clear after dispatch prevents duplicate processing if the same instance is reused
             addedEvent.ClearDomainEvents();
 
             var result = mapper.Map<ReportedEventResultDto>(addedEvent);

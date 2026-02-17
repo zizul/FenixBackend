@@ -1,4 +1,4 @@
-﻿using Application.Common;
+using Application.Common;
 using Domain.Entities;
 using MediatR;
 using NSubstitute;
@@ -22,10 +22,10 @@ namespace UnitTests.Application.Common
         {
             var dispatcher = new DomainEventDispatcher(mediator);
 
-            dispatcher.Consume(domainEvents);
+            await dispatcher.Consume(domainEvents);
 
             await mediator.Received(domainEvents.Count)
-                .Publish(Arg.Any<DomainEventNotification<IDomainEvent>>());
+                .Publish(Arg.Any<INotification>(), Arg.Any<CancellationToken>());
         }
 
         public static IEnumerable<object[]> TestCases => new List<object[]>

@@ -1,4 +1,4 @@
-﻿using Application.Common;
+using Application.Common;
 using Application.Services.Event.Commands;
 using Application.Services.Event.Contracts;
 using Application.Services.Event.DTOs;
@@ -20,6 +20,7 @@ namespace Application.Services.Event.Handlers
         private readonly IReportedEventsRepository repositoryMock;
         private readonly IDomainEventConsumer eventsConsumerMock;
         private readonly IMapper mapper;
+        private List<IDomainEvent> capturedEvents = new();
 
 
         public ReportEventCommandHandlerTests()
@@ -27,6 +28,11 @@ namespace Application.Services.Event.Handlers
             repositoryMock = Substitute.For<IReportedEventsRepository>();
             eventsConsumerMock = Substitute.For<IDomainEventConsumer>();
             mapper = MapperUtils.CreateMapper<ReportedEventMappingProfile>();
+
+            // Capture events at call time — DomainEvents is a live reference that gets cleared after Consume
+            eventsConsumerMock.Consume(Arg.Any<IReadOnlyList<IDomainEvent>>())
+                .Returns(Task.CompletedTask)
+                .AndDoes(x => capturedEvents = x.Arg<IReadOnlyList<IDomainEvent>>().ToList());
         }
 
         [Fact]
@@ -49,11 +55,8 @@ namespace Application.Services.Event.Handlers
             Assert.Equivalent(newEvent.Coordinates, result.Data.Coordinates);
             await repositoryMock.Received()
                 .Add(Arg.Is<ReportedEvent>(x => x.Reporter.UserId == "0"), Arg.Any<string>());
-            eventsConsumerMock.Received()
-                .Consume(Arg.Is<List<IDomainEvent>>(
-                    list => 
-                        list.Count == 1 && 
-                        ((EventReportedDomainEvent)list[0]).Id == newEvent.Id));
+            Assert.Single(capturedEvents);
+            Assert.Equal(newEvent.Id, ((EventReportedDomainEvent)capturedEvents[0]).EventId);
         }
 
         private void SetupRepository(ReportedEvent reportedEvent)

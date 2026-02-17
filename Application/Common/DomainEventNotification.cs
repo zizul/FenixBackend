@@ -1,20 +1,16 @@
-﻿using Domain.Entities;
+using Domain.Entities;
 using MediatR;
 
 namespace Application.Common
 {
     /// <summary>
-    /// Wrapper around DomainEvent, to not add MediatR dependency to the Domain layer
+    /// Lightweight wrapper that bridges Domain events to MediatR notifications
+    /// without polluting the Domain layer with MediatR dependency.
+    /// 
+    /// Readonly record struct: zero-allocation wrapper (stack-allocated).
+    /// Value equality provided automatically by record — two notifications
+    /// wrapping equal domain events are themselves equal.
     /// </summary>
-    public class DomainEventNotification<TDomainEvent> : INotification
-        where TDomainEvent : IDomainEvent
-    {
-        public TDomainEvent DomainEvent { get; }
-
-
-        public DomainEventNotification(TDomainEvent domainEvent)
-        {
-            DomainEvent = domainEvent;
-        }
-    }
+    public readonly record struct DomainEventNotification<TDomainEvent>(TDomainEvent DomainEvent) : INotification
+        where TDomainEvent : IDomainEvent;
 }

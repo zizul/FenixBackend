@@ -27,7 +27,7 @@ namespace Application.Services.Event.Handlers
 
             await messagePublisher.Received()
                 .PublishAsync(
-                    Arg.Is<SearchRespondersCommand>(cmd => cmd.EventId == domainEvent.Id),
+                    Arg.Is<SearchRespondersCommand>(cmd => cmd.EventId == domainEvent.EventId),
                     Arg.Any<CancellationToken>());
         }
     }

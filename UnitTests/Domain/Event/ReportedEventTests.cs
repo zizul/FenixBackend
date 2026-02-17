@@ -1,4 +1,4 @@
-﻿using Domain.Entities.Event;
+using Domain.Entities.Event;
 using Domain.Entities.Event.DomainEvents;
 using Domain.Entities.Event.DomainExceptions;
 using Domain.Enums;
@@ -17,7 +17,11 @@ namespace UnitTests.Domain.Event
 
             Assert.Equal(EventStatusType.Pending, reportedEvent.Status);
             Assert.Collection(reportedEvent.DomainEvents,
-                x => Assert.Equivalent(new EventReportedDomainEvent(reportedEvent.Id), x));
+                x =>
+                {
+                    var e = Assert.IsType<EventReportedDomainEvent>(x);
+                    Assert.Equal(reportedEvent.Id, e.EventId);
+                });
         }
 
         [Theory]
@@ -31,8 +35,12 @@ namespace UnitTests.Domain.Event
 
             Assert.Equal(EventStatusType.Cancelled, reportedEvent.Status);
             Assert.Collection(reportedEvent.DomainEvents,
-                x => Assert.Equivalent(
-                    new EventCompletedDomainEvent(reportedEvent.Id, EventStatusType.Cancelled), x));
+                x =>
+                {
+                    var e = Assert.IsType<EventClosedDomainEvent>(x);
+                    Assert.Equal(reportedEvent.Id, e.EventId);
+                    Assert.Equal(EventStatusType.Cancelled, e.FinalStatus);
+                });
         }
 
         [Theory]
@@ -62,8 +70,12 @@ namespace UnitTests.Domain.Event
 
             Assert.Equal(expected, reportedEvent.Status);
             Assert.Collection(reportedEvent.DomainEvents,
-                x => Assert.Equivalent(
-                    new EventCompletedDomainEvent(reportedEvent.Id, EventStatusType.Cancelled), x));
+                x =>
+                {
+                    var e = Assert.IsType<EventClosedDomainEvent>(x);
+                    Assert.Equal(reportedEvent.Id, e.EventId);
+                    Assert.Equal(EventStatusType.Cancelled, e.FinalStatus);
+                });
         }
 
         [Fact]
@@ -144,8 +156,12 @@ namespace UnitTests.Domain.Event
                 x => Assert.Equal(ResponderStatusType.Completed, x.Status),
                 x => Assert.Equal(ResponderStatusType.Incompleted, x.Status));
             Assert.Collection(reportedEvent.DomainEvents,
-                x => Assert.Equivalent(
-                    new EventCompletedDomainEvent(reportedEvent.Id, EventStatusType.Completed), x));
+                x =>
+                {
+                    var e = Assert.IsType<EventClosedDomainEvent>(x);
+                    Assert.Equal(reportedEvent.Id, e.EventId);
+                    Assert.Equal(EventStatusType.Completed, e.FinalStatus);
+                });
         }
 
         private ReportedEvent CreateEvent(
