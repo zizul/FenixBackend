@@ -18,7 +18,7 @@ try
 
     // Add services to the container.
     builder.Services
-        .AddApplicationAddApplication()
+        .AddApplication()
         .AddInfrastructure(builder.Configuration)
         .AddPresentation(builder.Configuration);
 
@@ -44,6 +44,7 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+    app.UseExceptionHandler("/Error");
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 

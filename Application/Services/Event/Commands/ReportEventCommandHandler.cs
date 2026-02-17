@@ -8,7 +8,7 @@ using MediatR;
 
 namespace Application.Services.Event.Commands
 {
-    public class ReportEventCommandHandler : IRequestHandler<ReportEventCommandDto, ReportedEventResultDto>
+    public sealed class ReportEventCommandHandler : IRequestHandler<ReportEventCommandDto, ReportedEventResultDto>
     {
         private readonly IReportedEventsRepository repository;
         private readonly IMapper mapper;
@@ -32,7 +32,10 @@ namespace Application.Services.Event.Commands
             var addedEvent = await repository.Add(reportedEvent, request.IdentityId);
             addedEvent.ReportEvent();
 
-            eventsConsumer.Consume(addedEvent.DomainEvents);
+            // Domain events dispatched after successful persistence (awaited for reliability).
+            // Publishes SearchRespondersCommand to RabbitMQ via EventReportedDomainEventHandler.
+            await eventsConsumer.Consume(addedEvent.DomainEvents).ConfigureAwait(false);
+            addedEvent.ClearDomainEvents();
 
             var result = mapper.Map<ReportedEventResultDto>(addedEvent);
             return result;

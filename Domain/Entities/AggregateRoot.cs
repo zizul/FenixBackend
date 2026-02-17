@@ -1,16 +1,27 @@
-﻿
+
 namespace Domain.Entities
 {
     public abstract class AggregateRoot
     {
-        public List<IDomainEvent> DomainEvents => domainEvents;
+        private readonly List<IDomainEvent> domainEvents = new();
 
-        private readonly List<IDomainEvent> domainEvents = new List<IDomainEvent>();
-
+        /// <summary>
+        /// Registered domain events pending dispatch. Read-only view to prevent external mutation.
+        /// </summary>
+        public IReadOnlyList<IDomainEvent> DomainEvents => domainEvents;
 
         protected void RegisterDomainEvent(IDomainEvent domainEvent)
         {
             domainEvents.Add(domainEvent);
+        }
+
+        /// <summary>
+        /// Clears all pending domain events after they have been dispatched.
+        /// Prevents duplicate dispatch if Consume is called more than once on the same instance.
+        /// </summary>
+        public void ClearDomainEvents()
+        {
+            domainEvents.Clear();
         }
     }
 }

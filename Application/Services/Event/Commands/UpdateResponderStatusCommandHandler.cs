@@ -1,4 +1,4 @@
-﻿using Application.Common;
+using Application.Common;
 using Application.Exceptions;
 using Application.Services.Event.Contracts;
 using Application.Services.Event.DTOs;
@@ -10,7 +10,7 @@ using MediatR;
 
 namespace Application.Services.Event.Commands
 {
-    public class UpdateResponderStatusCommandHandler : IRequestHandler<UpdateResponderStatusCommandDto>
+    public sealed class UpdateResponderStatusCommandHandler : IRequestHandler<UpdateResponderStatusCommandDto>
     {
         private readonly IReportedEventsRepository repository;
         private readonly IDeviceRepository deviceRepository;
@@ -29,16 +29,18 @@ namespace Application.Services.Event.Commands
         {
             var device = await deviceRepository.GetUserActiveDevice(request.IdentityId);
 
-            Action<ReportedEvent> updateEntity = (reportedEvent) =>
+            // Func overload enables awaiting domain event dispatch inside the callback.
+            // Events are dispatched within the repository's update scope, ensuring handler
+            // completion before the operation returns.
+            await repository.Update(request.EventId, async (reportedEvent) =>
             {
                 UpdateResponder(reportedEvent, request, device);
-                eventsConsumer.Consume(reportedEvent.DomainEvents);
-            };
-
-            await repository.Update(request.EventId, updateEntity);
+                await eventsConsumer.Consume(reportedEvent.DomainEvents).ConfigureAwait(false);
+                reportedEvent.ClearDomainEvents();
+            });
         }
 
-        private void UpdateResponder(ReportedEvent reportedEvent, UpdateResponderStatusCommandDto request, Device? device)
+        private static void UpdateResponder(ReportedEvent reportedEvent, UpdateResponderStatusCommandDto request, Device? device)
         {
             try
             {

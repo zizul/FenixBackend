@@ -1,4 +1,4 @@
-﻿using Application.Common;
+using Application.Common;
 using Application.Exceptions;
 using Application.Services.Event.Contracts;
 using Application.Services.Event.DTOs;
@@ -8,7 +8,7 @@ using MediatR;
 
 namespace Application.Services.Event.Commands
 {
-    public class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommandDto>
+    public sealed class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommandDto>
     {
         private readonly IReportedEventsRepository repository;
         private readonly IDomainEventConsumer eventsConsumer;
@@ -24,16 +24,18 @@ namespace Application.Services.Event.Commands
 
         public async Task Handle(UpdateEventCommandDto request, CancellationToken cancellationToken)
         {
-            Action<ReportedEvent> updateEntity = (reportedEvent) =>
+            // Func overload enables awaiting domain event dispatch inside the callback.
+            // Events are dispatched within the repository's update scope, ensuring handler
+            // completion before the operation returns.
+            await repository.Update(request.EventId, async (reportedEvent) =>
             {
                 UpdateEvent(reportedEvent, request);
-                eventsConsumer.Consume(reportedEvent.DomainEvents);
-            };
-
-            var updated = await repository.Update(request.EventId, updateEntity);
+                await eventsConsumer.Consume(reportedEvent.DomainEvents).ConfigureAwait(false);
+                reportedEvent.ClearDomainEvents();
+            });
         }
 
-        private void UpdateEvent(ReportedEvent reportedEvent, UpdateEventCommandDto request)
+        private static void UpdateEvent(ReportedEvent reportedEvent, UpdateEventCommandDto request)
         {
             try
             {

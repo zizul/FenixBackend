@@ -1,4 +1,5 @@
-﻿using Application.Services.Event.Contracts;
+using Application.Common;
+using Application.Services.Event.Contracts;
 using Application.Services.Location.Contracts;
 using Application.Services.Map.PointsOfInterest.Contracts;
 using Application.Services.Readiness.Contracts;
@@ -6,6 +7,7 @@ using Application.Services.User.Contracts;
 using Infrastructure.Coordinator;
 using Infrastructure.Coordinator.Common;
 using Infrastructure.Identity;
+using Infrastructure.Messaging;
 using Infrastructure.Notifications;
 using Infrastructure.Persistance.Core;
 using Infrastructure.Persistance.Core.Arango;
@@ -15,6 +17,7 @@ using Infrastructure.Persistance.Repositories.Location;
 using Infrastructure.Persistance.Repositories.Map;
 using Infrastructure.Persistance.Repositories.Readiness;
 using Infrastructure.Persistance.Repositories.User;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +37,7 @@ namespace Infrastructure
             AddPersistence(services, configuration);
             AddIdentity(services, configuration);
             AddNotifications(services, configuration);
+            AddMessaging(services, configuration);
             return services;
         }
 
@@ -49,7 +53,7 @@ namespace Infrastructure
         private static void AddArangoDb(IServiceCollection services, ConfigurationManager configuration)
         {
             services.Configure<ArangoDbOptions>(configuration.GetSection("ArangoDb"));
-            services.AddSingleton<IArangoDbClientContext, ArangoDBClientContext>();
+            services.AddScoped<IArangoDbClientContext, ArangoDBClientContext>();
         }
 
         private static void AddRepositories(IServiceCollection services)
@@ -106,6 +110,54 @@ namespace Infrastructure
             });
 
             services.AddAuthorization();
+        }
+
+        /// <summary>
+        /// Registers MassTransit with RabbitMQ transport for durable message processing.
+        /// Replaces the previous in-memory WorkerBackgroundService/WorkItemsQueue approach.
+        /// </summary>
+        private static void AddMessaging(IServiceCollection services, ConfigurationManager configuration)
+        {
+            services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
+
+            services.AddMassTransit(bus =>
+            {
+                // Register consumers from this assembly (SearchRespondersConsumer)
+                bus.AddConsumer<SearchRespondersConsumer>();
+
+                bus.UsingRabbitMq((context, cfg) =>
+                {
+                    var options = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+
+                    cfg.Host(options.Host, options.Port, options.VirtualHost, h =>
+                    {
+                        h.Username(options.Username);
+                        h.Password(options.Password);
+                    });
+
+                    cfg.ReceiveEndpoint("search-responders", e =>
+                    {
+                        // Throttle concurrent message processing to prevent database saturation.
+                        // PrefetchCount controls how many messages RabbitMQ delivers ahead;
+                        // ConcurrentMessageLimit caps how many process simultaneously.
+                        e.PrefetchCount = 16;
+                        e.ConcurrentMessageLimit = 10;
+
+                        // Exponential backoff retry for transient failures (DB timeouts, network).
+                        // After exhausting retries, MassTransit moves the message to _error queue.
+                        e.UseMessageRetry(r => r.Exponential(
+                            retryLimit: 5,
+                            minInterval: TimeSpan.FromSeconds(1),
+                            maxInterval: TimeSpan.FromSeconds(30),
+                            intervalDelta: TimeSpan.FromSeconds(2)));
+
+                        e.ConfigureConsumer<SearchRespondersConsumer>(context);
+                    });
+                });
+            });
+
+            // Scoped lifetime mirrors IPublishEndpoint scope for proper consume context flow
+            services.AddScoped<IMessagePublisher, MassTransitMessagePublisher>();
         }
 
         private static void AddNotifications(IServiceCollection services, ConfigurationManager configuration)

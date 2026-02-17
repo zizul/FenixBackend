@@ -1,44 +1,34 @@
-﻿using Domain.Entities.Event.DomainEvents;
 using Application.Common;
-using Application.Services.Event.Worker;
-using Application.Services.Event.Contracts;
+using Application.Services.Event.Messages;
+using Domain.Entities.Event.DomainEvents;
 
 namespace Application.Services.Event.DomainEvents
 {
-    public class EventReportedDomainEventHandler : IDomainEventHandler<EventReportedDomainEvent>
+    /// <summary>
+    /// Reacts to a reported event by publishing a search command to RabbitMQ.
+    /// Unlike the previous in-memory worker approach, messages survive application restarts
+    /// and benefit from RabbitMQ's retry/error queue infrastructure.
+    /// </summary>
+    public sealed class EventReportedDomainEventHandler : IDomainEventHandler<EventReportedDomainEvent>
     {
-        private readonly IWorkerManager worker;
-        private readonly IEventCoordinatorService coordinator;
+        private readonly IMessagePublisher messagePublisher;
 
 
-        public EventReportedDomainEventHandler(
-            IWorkerManager worker, 
-            IEventCoordinatorService coordinator) 
+        public EventReportedDomainEventHandler(IMessagePublisher messagePublisher)
         {
-            this.worker = worker;
-            this.coordinator = coordinator;
+            this.messagePublisher = messagePublisher;
         }
 
-        public Task Handle(DomainEventNotification<EventReportedDomainEvent> notification, CancellationToken cancellationToken)
+        public async Task Handle(DomainEventNotification<EventReportedDomainEvent> notification, CancellationToken cancellationToken)
         {
-            var id = notification.DomainEvent.Id;
-
-            Func<CancellationToken, Task> search = async (token) => { await SearchForResponders(token, id); };
-
-            worker.AddLoopJob(notification.DomainEvent.Id, search);
-            return Task.CompletedTask;
-        }
-
-        private async Task SearchForResponders(CancellationToken token, string id)
-        {
-            double searchRadius = 5;
-            int searchDelayInMs = 500;
-
-            while (!token.IsCancellationRequested)
+            // Publish search command to RabbitMQ — the consumer handles the responder search loop.
+            // Durable queue ensures the search survives application restarts (fixes in-memory job loss).
+            var command = new SearchRespondersCommand
             {
-                await coordinator.TryFindAndAssignRespondersToEvent(id, searchRadius);
-                await Task.Delay(searchDelayInMs, token);
-            }
+                EventId = notification.DomainEvent.Id
+            };
+
+            await messagePublisher.PublishAsync(command, cancellationToken).ConfigureAwait(false);
         }
     }
 }

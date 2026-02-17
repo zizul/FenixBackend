@@ -1,22 +1,19 @@
-﻿using Domain.Entities.Event.DomainEvents;
+using Domain.Entities.Event.DomainEvents;
 using Application.Common;
-using Application.Services.Event.Worker;
 
 namespace Application.Services.Event.DomainEvents
 {
-    public class EventCompletedDomainEventHandler : IDomainEventHandler<EventCompletedDomainEvent>
+    /// <summary>
+    /// Handles event completion/cancellation.
+    /// With RabbitMQ, search jobs are self-terminating — the consumer checks event status
+    /// and stops re-publishing when the event is no longer pending.
+    /// This handler serves as an extension point for future side effects
+    /// (e.g., analytics, audit logging, cleanup).
+    /// </summary>
+    public sealed class EventCompletedDomainEventHandler : IDomainEventHandler<EventCompletedDomainEvent>
     {
-        private readonly IWorkerManager worker;
-
-
-        public EventCompletedDomainEventHandler(IWorkerManager worker) 
-        {
-            this.worker = worker;
-        }
-
         public Task Handle(DomainEventNotification<EventCompletedDomainEvent> notification, CancellationToken cancellationToken)
         {
-            worker.CancelRunningJob(notification.DomainEvent.Id);
             return Task.CompletedTask;
         }
     }

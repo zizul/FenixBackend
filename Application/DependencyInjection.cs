@@ -1,6 +1,5 @@
-﻿using Application.Behaviors;
+using Application.Behaviors;
 using Application.Common;
-using Application.Services.Event.Worker;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
@@ -29,7 +28,6 @@ namespace Application
                 typeof(Application.DependencyInjection).Assembly);
 
             AddDomainEventsDispatcher(services);
-            AddWorkerService(services);
 
             return services;
         }
@@ -37,13 +35,6 @@ namespace Application
         private static void AddDomainEventsDispatcher(IServiceCollection services)
         {
             services.AddScoped<IDomainEventConsumer, DomainEventDispatcher>();
-        }
-
-        private static void AddWorkerService(IServiceCollection services)
-        {
-            services.AddHostedService<WorkerBackgroundService>();
-            services.AddSingleton<IWorkItemsQueue, WorkItemsQueue>();
-            services.AddSingleton<IWorkerManager, WorkerManager>();
         }
     }
 }

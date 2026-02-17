@@ -1,7 +1,6 @@
-﻿using Application.Common;
-using Application.Services.Event.Contracts;
+using Application.Common;
 using Application.Services.Event.DomainEvents;
-using Application.Services.Event.Worker;
+using Application.Services.Event.Messages;
 using Domain.Entities.Event.DomainEvents;
 using NSubstitute;
 
@@ -9,27 +8,27 @@ namespace Application.Services.Event.Handlers
 {
     public class EventReportedDomainEventHandlerTests
     {
-        private readonly IWorkerManager worker;
-        private readonly IEventCoordinatorService coordinator;
+        private readonly IMessagePublisher messagePublisher;
 
 
         public EventReportedDomainEventHandlerTests()
         {
-            worker = Substitute.For<IWorkerManager>();
-            coordinator = Substitute.For<IEventCoordinatorService>();
+            messagePublisher = Substitute.For<IMessagePublisher>();
         }
 
         [Fact]
-        public async Task Handle_Should_CreateWorkerJob()
+        public async Task Handle_Should_PublishSearchCommand()
         {
-            var handler = new EventReportedDomainEventHandler(worker, coordinator);
+            var handler = new EventReportedDomainEventHandler(messagePublisher);
             var domainEvent = new EventReportedDomainEvent("123");
             var notification = new DomainEventNotification<EventReportedDomainEvent>(domainEvent);
 
             await handler.Handle(notification, default);
 
-            worker.Received()
-                .AddLoopJob(Arg.Is(domainEvent.Id), Arg.Any<Func<CancellationToken, Task>>());
+            await messagePublisher.Received()
+                .PublishAsync(
+                    Arg.Is<SearchRespondersCommand>(cmd => cmd.EventId == domainEvent.Id),
+                    Arg.Any<CancellationToken>());
         }
     }
 }

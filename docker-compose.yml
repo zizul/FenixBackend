@@ -1,0 +1,41 @@
+services:
+  fenix-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fenix-rabbitmq
+    hostname: fenix-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP protocol
+      - "15672:15672"   # Management UI (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fenix-network
+
+  fenix-arangodb:
+    image: arangodb:3.11
+    container_name: fenix-arangodb
+    ports:
+      - "8529:8529"
+    environment:
+      ARANGO_ROOT_PASSWORD: vislab
+    volumes:
+      - arangodb_data:/var/lib/arangodb3
+      - ./docker/arangodb/initdb.d:/docker-entrypoint-initdb.d
+    networks:
+      - fenix-network
+
+volumes:
+  rabbitmq_data:
+  arangodb_data:
+
+networks:
+  fenix-network:
+    driver: bridge
