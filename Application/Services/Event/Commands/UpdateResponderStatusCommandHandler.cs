@@ -35,7 +35,7 @@ namespace Application.Services.Event.Commands
             await repository.Update(request.EventId, async (reportedEvent) =>
             {
                 UpdateResponder(reportedEvent, request, device);
-                await eventsConsumer.Consume(reportedEvent.DomainEvents).ConfigureAwait(false);
+                await eventsConsumer.Consume(reportedEvent.DomainEvents);
                 reportedEvent.ClearDomainEvents();
             });
         }

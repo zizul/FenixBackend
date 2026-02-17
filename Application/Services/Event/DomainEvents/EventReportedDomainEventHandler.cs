@@ -28,7 +28,7 @@ namespace Application.Services.Event.DomainEvents
                 EventId = notification.DomainEvent.Id
             };
 
-            await messagePublisher.PublishAsync(command, cancellationToken).ConfigureAwait(false);
+            await messagePublisher.PublishAsync(command, cancellationToken);
         }
     }
 }

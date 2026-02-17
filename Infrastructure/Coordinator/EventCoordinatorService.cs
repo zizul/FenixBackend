@@ -36,20 +36,20 @@ namespace Infrastructure.Coordinator
             using var scope = serviceScopeFactory.CreateScope();
             SetServices(scope.ServiceProvider);
 
-            var reportedEvent = await TryUpdateEventState(eventId).ConfigureAwait(false);
+            var reportedEvent = await TryUpdateEventState(eventId);
 
             // Event is no longer pending — stop searching for responders
             if (reportedEvent.Status != EventStatusType.Pending)
                 return false;
 
             var userIds = await GetAvailableRespondersIdsNearby(reportedEvent, radiusInKm)
-                .ConfigureAwait(false);
+;
 
             // No available responders found yet — signal consumer to continue searching
             if (userIds.Count == 0)
                 return true;
 
-            await AssignResponders(eventId, radiusInKm).ConfigureAwait(false);
+            await AssignResponders(eventId, radiusInKm);
             return true;
         }
 
@@ -69,7 +69,7 @@ namespace Infrastructure.Coordinator
                 reportedEvent.UpdateEventStatus();
 
                 // Await domain event dispatch — fixes previous fire-and-forget bug
-                await eventsConsumer.Consume(reportedEvent.DomainEvents).ConfigureAwait(false);
+                await eventsConsumer.Consume(reportedEvent.DomainEvents);
                 reportedEvent.ClearDomainEvents();
             });
 
@@ -79,7 +79,7 @@ namespace Infrastructure.Coordinator
         private async Task<List<string>> GetAvailableRespondersIdsNearby(ReportedEvent reportedEvent, double radiusInKm)
         {
             var users = await eventRepository.GetAvailableResponders(reportedEvent, radiusInKm)
-                .ConfigureAwait(false);
+;
             return users.Select(x => x.IdentityId).ToList();
         }
 
@@ -90,32 +90,32 @@ namespace Infrastructure.Coordinator
             Func<ReportedEvent, Task> updateEntity = async (reportedEvent) =>
             {
                 userIds = await GetAvailableRespondersIdsNearby(reportedEvent, radiusInKm)
-                    .ConfigureAwait(false);
+;
 
                 // Index-based loop avoids enumerator allocation on List<string>
                 for (var i = 0; i < userIds.Count; i++)
                 {
                     var device = await deviceRepository.GetUserActiveDevice(userIds[i])
-                        .ConfigureAwait(false);
+;
                     reportedEvent.AssignResponder(userIds[i], device?.Coordinates);
                 }
 
                 // Await domain event dispatch — fixes previous fire-and-forget bug
-                await eventsConsumer.Consume(reportedEvent.DomainEvents).ConfigureAwait(false);
+                await eventsConsumer.Consume(reportedEvent.DomainEvents);
                 reportedEvent.ClearDomainEvents();
             };
 
             var currentEvent = await eventRepository.UpdateEvent(eventId, updateEntity)
-                .ConfigureAwait(false);
+;
 
-            await NotifyResponders(userIds, currentEvent).ConfigureAwait(false);
+            await NotifyResponders(userIds, currentEvent);
         }
 
         private async Task NotifyResponders(List<string> identityIds, ReportedEvent reportedEvent)
         {
             var tokens = await eventRepository.GetRespondersFirebaseTokens(identityIds)
-                .ConfigureAwait(false);
-            await notifier.Notify(tokens.ToArray(), reportedEvent).ConfigureAwait(false);
+;
+            await notifier.Notify(tokens.ToArray(), reportedEvent);
         }
     }
 }

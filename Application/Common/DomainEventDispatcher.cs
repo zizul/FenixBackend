@@ -39,7 +39,7 @@ namespace Application.Common
 
                 // Awaiting ensures handler exceptions propagate and handlers complete
                 // before the caller continues (fixes previous fire-and-forget bug)
-                await mediator.Publish(notification).ConfigureAwait(false);
+                await mediator.Publish(notification);
             }
         }
 

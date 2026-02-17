@@ -30,7 +30,7 @@ namespace Application.Services.Event.Commands
             await repository.Update(request.EventId, async (reportedEvent) =>
             {
                 UpdateEvent(reportedEvent, request);
-                await eventsConsumer.Consume(reportedEvent.DomainEvents).ConfigureAwait(false);
+                await eventsConsumer.Consume(reportedEvent.DomainEvents);
                 reportedEvent.ClearDomainEvents();
             });
         }

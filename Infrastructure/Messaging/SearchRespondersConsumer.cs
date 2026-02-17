@@ -46,7 +46,7 @@ namespace Infrastructure.Messaging
             // Coordinator checks event status, finds responders, assigns, and notifies via Firebase
             var shouldContinue = await coordinator
                 .TryFindAndAssignRespondersToEvent(message.EventId, message.SearchRadiusKm)
-                .ConfigureAwait(false);
+;
 
             if (!shouldContinue)
             {
@@ -66,13 +66,13 @@ namespace Infrastructure.Messaging
             }
 
             // Delay before re-publishing to avoid saturating the database with rapid queries
-            await Task.Delay(message.SearchDelayMs, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(message.SearchDelayMs, cancellationToken);
 
             // Re-publish with incremented attempt counter.
             // Immutable record 'with' expression — efficient copy without manual construction.
             await context.Publish(
                 message with { Attempt = message.Attempt + 1 },
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
     }
 }
